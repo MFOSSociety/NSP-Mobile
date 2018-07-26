@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:nsp/internal/data.dart';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -15,57 +16,65 @@ class HomePage extends StatefulWidget {
 
 class HomePageState extends State<HomePage> {
   final String url = "http://thensp.pythonanywhere.com/api/users/";
-  List data;
+  List<Data> convertedData;
 
   @override
   void initState() {
     super.initState();
-    this.getJsonData();
+    getJsonData().then((data) {
+      var dataMap = json.decode(data);
+      convertedData = (dataMap as List).map((i) => Data.fromJson(i)).toList();
+    });
   }
 
   Future<String> getJsonData() async {
-    var response = await http.get(
-        // Encode the URL
-        Uri.encodeFull(url),
-        // Also requires a header
-        // Only accept json response
-        headers: {"Accept": "application/json"});
-    print(response.body);
+    var response = await http
+        .get(Uri.encodeFull(url), headers: {"Accept": "application/json"});
+    return response.body;
+  }
 
-    setState(() {
-      var convertDataToJson = json.decode(response.body);
-      data = convertDataToJson[''];
-    });
+  List<Widget> userCards() {
+    List<Widget> ret = new List<Widget>();
+    final double textSize = 20.0;
+    final TextStyle textStyle = new TextStyle(fontSize: textSize);
 
-    return "Success";
+    if (convertedData == null) {
+      getJsonData().then((data) {
+        var dataMap = json.decode(data);
+        convertedData = (dataMap as List).map((i) => Data.fromJson(i)).toList();
+      });
+    }
+
+    for (Data d in convertedData) {
+      ret.add(new Card(
+          child: new Padding(
+        padding: EdgeInsets.all(10.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            new Text(d.username, style: textStyle),
+            new Text(d.email)
+          ],
+        ),
+      )));
+    }
+
+    return ret;
   }
 
   @override
   Widget build(BuildContext context) {
+    List<Widget> cards = userCards();
     return new Scaffold(
-      appBar: new AppBar(
-        title: new Text("NSP"),
-      ),
-      body: new ListView.builder(
-        itemCount: data == null ? 0 : data.length,
-        itemBuilder: (BuildContext context, int index) {
-          return new Container(
-            child: new Center(
-              child: new Column(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: <Widget>[
-                  new Card(
-                    child: new Container(
-                      child: new Text(data[index]['username']),
-                      padding: EdgeInsets.all(20.0),
-                    ),
-                  )
-                ],
-              ),
-            ),
-          );
-        },
-      ),
-    );
+        appBar: new AppBar(
+          title: new Text("NSP"),
+        ),
+        body: new SingleChildScrollView(
+            padding: EdgeInsets.all(10.0),
+            child: Center(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: cards),
+            )));
   }
 }
